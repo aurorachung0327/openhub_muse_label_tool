@@ -4,6 +4,9 @@ const selectImagesBtn = document.querySelector("#selectImagesBtn");
 const imageInput = document.querySelector("#imageInput");
 const chooseOutputBtn = document.querySelector("#chooseOutputBtn");
 const saveImagesBtn = document.querySelector("#saveImagesBtn");
+const loadProgress = document.querySelector("#loadProgress");
+const loadProgressBar = document.querySelector("#loadProgressBar");
+const loadProgressLabel = document.querySelector("#loadProgressLabel");
 const imageList = document.querySelector("#imageList");
 const imageCount = document.querySelector("#imageCount");
 const boxCount = document.querySelector("#boxCount");
@@ -29,6 +32,10 @@ const state = {
   drag: null,
   outputDirHandle: null,
 };
+
+// DOM rows for the sidebar list, built once per load (see renderImageList).
+let imageListItems = [];
+let activeListIndex = -1;
 
 openFolderBtn.addEventListener("click", openImageFolder);
 folderInput.addEventListener("change", handleFolderSelect);
@@ -57,44 +64,79 @@ async function openImageFolder() {
   folderInput.click();
 }
 
-function handleFolderSelect(event) {
-  const files = Array.from(event.target.files)
-    .filter((file) => file.type.startsWith("image/") || imageExtensions.test(file.name))
+async function handleFolderSelect(event) {
+  await loadFiles(event.target.files, "No supported images were found in that folder.");
+  event.target.value = "";
+}
+
+async function handleImageSelect(event) {
+  await loadFiles(event.target.files, "No supported images were selected.");
+  event.target.value = "";
+}
+
+async function loadFiles(fileList, emptyMessage) {
+  const files = Array.from(fileList)
+    .filter(isImageFile)
     .sort((a, b) => getPath(a).localeCompare(getPath(b), "en", { numeric: true }));
 
-  loadImageEntries(createBrowserImageEntries(files));
-
-  if (state.images.length) {
-    setStatus(`Loaded ${state.images.length} images.`);
-  } else {
-    setStatus("No supported images were found in that folder.");
+  if (!files.length) {
+    setStatus(emptyMessage);
+    return;
   }
-  event.target.value = "";
+
+  const total = files.length;
+  showLoadProgress(total);
+  setStatus(`Loading ${total} images...`);
+
+  const entries = [];
+  try {
+    for (let index = 0; index < files.length; index += 1) {
+      const entry = createImageEntry(files[index], index);
+      await decodeImage(entry.url);
+      entries.push(entry);
+      updateLoadProgress(entries.length, total);
+    }
+  } finally {
+    hideLoadProgress();
+  }
+
+  loadImageEntries(entries);
+  setStatus(`Loaded ${state.images.length} images.`);
 }
 
-function handleImageSelect(event) {
-  const files = Array.from(event.target.files).filter(isImageFile);
-  loadImageEntries(createBrowserImageEntries(files));
-
-  if (state.images.length) {
-    setStatus(`Loaded ${state.images.length} images.`);
-  } else {
-    setStatus("No supported images were selected.");
-  }
-  event.target.value = "";
+function createImageEntry(file, index) {
+  return {
+    id: getPath(file) || `${index}-${file.name}`,
+    file,
+    name: file.name,
+    path: getPath(file) || file.name,
+    url: URL.createObjectURL(file),
+  };
 }
 
-function createBrowserImageEntries(files) {
-  return files
-    .filter(isImageFile)
-    .sort((a, b) => getPath(a).localeCompare(getPath(b), "en", { numeric: true }))
-    .map((file, index) => ({
-      id: getPath(file) || `${index}-${file.name}`,
-      file,
-      name: file.name,
-      path: getPath(file) || file.name,
-      url: URL.createObjectURL(file),
-    }));
+function decodeImage(url) {
+  return new Promise((resolve) => {
+    const image = new Image();
+    image.onload = () => resolve();
+    image.onerror = () => resolve();
+    image.src = url;
+  });
+}
+
+function showLoadProgress(total) {
+  loadProgress.hidden = false;
+  updateLoadProgress(0, total);
+}
+
+function updateLoadProgress(done, total) {
+  const pct = total ? Math.round((done / total) * 100) : 0;
+  loadProgressBar.style.width = `${pct}%`;
+  loadProgressLabel.textContent = `${done} / ${total}`;
+}
+
+function hideLoadProgress() {
+  loadProgress.hidden = true;
+  loadProgressBar.style.width = "0";
 }
 
 function isImageFile(file) {
@@ -124,6 +166,8 @@ function getPath(file) {
 
 function renderImageList() {
   imageList.innerHTML = "";
+  imageListItems = [];
+  activeListIndex = -1;
   const fragment = document.createDocumentFragment();
 
   state.images.forEach((image, index) => {
@@ -134,6 +178,8 @@ function renderImageList() {
 
     const thumb = document.createElement("img");
     thumb.className = "thumb";
+    thumb.loading = "lazy";
+    thumb.decoding = "async";
     thumb.src = image.url;
     thumb.alt = "";
 
@@ -155,9 +201,29 @@ function renderImageList() {
     meta.append(name, sub);
     item.append(thumb, meta, badge);
     fragment.append(item);
+
+    imageListItems[index] = { button: item, badge };
+    if (index === state.currentIndex) activeListIndex = index;
   });
 
   imageList.append(fragment);
+}
+
+function setActiveListItem(index) {
+  if (index === activeListIndex) return;
+  imageListItems[activeListIndex]?.button.classList.remove("active");
+  const item = imageListItems[index];
+  if (item) {
+    item.button.classList.add("active");
+    item.button.scrollIntoView({ block: "nearest" });
+  }
+  activeListIndex = index;
+}
+
+function updateListBadge(index) {
+  const item = imageListItems[index];
+  if (!item) return;
+  item.badge.textContent = getBoxes(state.images[index]?.id).length;
 }
 
 function showImage(index) {
@@ -166,18 +232,18 @@ function showImage(index) {
   state.currentIndex = index;
   state.selectedBoxId = null;
   const imageInfo = state.images[index];
+
+  // Reuse the decoded image on revisit instead of re-decoding every navigation.
+  if (imageInfo.imageEl?.complete) {
+    displayImage(imageInfo, imageInfo.imageEl, index);
+    return;
+  }
+
   const image = new Image();
+  imageInfo.imageEl = image;
 
   image.onload = () => {
-    state.currentImage = image;
-    canvas.width = image.naturalWidth;
-    canvas.height = image.naturalHeight;
-    canvas.style.display = "block";
-    emptyState.style.display = "none";
-    currentName.textContent = imageInfo.path;
-    draw();
-    renderImageList();
-    updateToolbar();
+    if (state.currentIndex === index) displayImage(imageInfo, image, index);
   };
 
   image.onerror = () => {
@@ -185,6 +251,18 @@ function showImage(index) {
   };
 
   image.src = imageInfo.url;
+}
+
+function displayImage(imageInfo, image, index) {
+  state.currentImage = image;
+  canvas.width = image.naturalWidth;
+  canvas.height = image.naturalHeight;
+  canvas.style.display = "block";
+  emptyState.style.display = "none";
+  currentName.textContent = imageInfo.path;
+  draw();
+  setActiveListItem(index);
+  updateToolbar();
 }
 
 function resetCanvas() {
@@ -307,7 +385,7 @@ function finishDrag(event) {
     canvas.releasePointerCapture(event.pointerId);
   }
   draw();
-  renderImageList();
+  updateListBadge(state.currentIndex);
   updateToolbar();
 }
 
@@ -347,7 +425,7 @@ function deleteSelectedBox() {
   state.boxesByImage[imageId] = getBoxes().filter((box) => box.id !== state.selectedBoxId);
   state.selectedBoxId = null;
   draw();
-  renderImageList();
+  updateListBadge(state.currentIndex);
   updateToolbar();
 }
 
@@ -358,7 +436,7 @@ function clearCurrentBoxes() {
   state.boxesByImage[imageId] = [];
   state.selectedBoxId = null;
   draw();
-  renderImageList();
+  updateListBadge(state.currentIndex);
   updateToolbar();
 }
 
@@ -385,18 +463,10 @@ function handleDragLeave(event) {
   }
 }
 
-function handleDrop(event) {
+async function handleDrop(event) {
   preventFileOpen(event);
   canvasWrap.classList.remove("drag-over");
-
-  const files = Array.from(event.dataTransfer.files).filter(isImageFile);
-  loadImageEntries(createBrowserImageEntries(files));
-
-  if (state.images.length) {
-    setStatus(`Loaded ${state.images.length} dropped images.`);
-  } else {
-    setStatus("No supported image files were dropped.");
-  }
+  await loadFiles(event.dataTransfer.files, "No supported image files were dropped.");
 }
 
 function preventFileOpen(event) {

@@ -79,13 +79,16 @@ button:disabled {
 }
 
 .app-shell {
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
   display: grid;
   grid-template-columns: 320px minmax(0, 1fr);
 }
 
 .sidebar {
-  min-height: 100vh;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -110,6 +113,34 @@ button:disabled {
   display: grid;
   grid-template-columns: 1fr;
   gap: 8px;
+}
+
+.load-progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.load-progress-track {
+  flex: 1;
+  height: 8px;
+  border-radius: 6px;
+  background: var(--panel-soft);
+  border: 1px solid var(--line);
+  overflow: hidden;
+}
+
+.load-progress-bar {
+  width: 0;
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.1s linear;
+}
+
+.load-progress-label {
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
 }
 
 .stats {
@@ -186,7 +217,8 @@ button:disabled {
 
 .workspace {
   min-width: 0;
-  min-height: 100vh;
+  height: 100%;
+  min-height: 0;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
 }
@@ -255,7 +287,7 @@ button:disabled {
   min-height: 0;
   overflow: auto;
   display: grid;
-  place-items: center;
+  place-items: start center;
   padding: 24px;
   background:
     linear-gradient(45deg, #e6eaee 25%, transparent 25%),
@@ -325,12 +357,19 @@ canvas {
 @media (max-width: 860px) {
   .app-shell {
     grid-template-columns: 1fr;
+    height: auto;
+    overflow: visible;
   }
 
   .sidebar {
-    min-height: auto;
+    height: auto;
+    overflow: visible;
     border-right: 0;
     border-bottom: 1px solid var(--line);
+  }
+
+  .workspace {
+    height: auto;
   }
 
   .image-list {
