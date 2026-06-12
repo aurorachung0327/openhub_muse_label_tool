@@ -456,21 +456,29 @@ async function saveAnnotatedImages() {
   try {
     let saved = 0;
     for (const image of state.images) {
-      const blob = await renderAnnotatedImage(image);
+      const { blob, width, height } = await renderAnnotatedImage(image);
       const fileName = getExportImageName(image);
+
+      const entries = getBoxes(image.id).map((box) => toYoloBox(box, width, height));
+      const jsonBlob = new Blob([JSON.stringify(entries, null, 2)], {
+        type: "application/json",
+      });
+      const jsonName = getExportJsonName(image);
 
       if (state.outputDirHandle) {
         await writeBlobToDirectory(state.outputDirHandle, fileName, blob);
+        await writeBlobToDirectory(state.outputDirHandle, jsonName, jsonBlob);
       } else {
         downloadBlob(blob, fileName);
+        downloadBlob(jsonBlob, jsonName);
       }
       saved += 1;
     }
 
     setStatus(
       state.outputDirHandle
-        ? `Saved ${saved} images to the output folder.`
-        : `Downloaded ${saved} images.`
+        ? `Saved ${saved} images and labels to the output folder.`
+        : `Downloaded ${saved} images and labels.`
     );
   } catch {
     setStatus("Could not save images.");
@@ -494,7 +502,7 @@ function renderAnnotatedImage(imageInfo) {
       }
 
       outputCanvas.toBlob((blob) => {
-        if (blob) resolve(blob);
+        if (blob) resolve({ blob, width: outputCanvas.width, height: outputCanvas.height });
         else reject(new Error("Could not create output image"));
       }, "image/png");
     };
@@ -520,11 +528,27 @@ function downloadBlob(blob, fileName) {
 }
 
 function getExportImageName(image) {
-  const baseName = image.path
+  return `${getExportBaseName(image)}_boxed.png`;
+}
+
+function getExportJsonName(image) {
+  return `${getExportBaseName(image)}.json`;
+}
+
+function getExportBaseName(image) {
+  return image.path
     .replace(imageExtensions, "")
     .replace(/[\\/]+/g, "__")
     .replace(/[^\w.-]+/g, "_");
-  return `${baseName}_boxed.png`;
+}
+
+function toYoloBox(box, imageWidth, imageHeight) {
+  return {
+    x_center: (box.x + box.width / 2) / imageWidth,
+    y_center: (box.y + box.height / 2) / imageHeight,
+    width: box.width / imageWidth,
+    height: box.height / imageHeight,
+  };
 }
 
 function setStatus(message) {
