@@ -26,19 +26,60 @@ npm run build
 
 ## Docker Deploy
 
-<!-- ```bash
+```bash
 # Build image
 docker build -t muse-labeling .
 
 # Run
 docker run -p 443:443 muse-labeling
-``` -->
-
-```bash
-docker run -p 443:443 afaifai/muse-labeling:lastet
 ```
 
-Open Chrome and go to `https://localhost`
+Open Chrome and go to `https://localhost` — click "Advanced" → "Proceed" to bypass the self-signed certificate warning.
+
+## Data Format (`yolo_tracking_data.json`)
+
+```json
+{
+  "frame_00100.jpeg": {
+    "frame_index": 100,
+    "source_camera_file": "01779276639.145422.jpeg",
+    "detections": [
+      {
+        "pos1": [780.87, 503.90],
+        "pos2": [1408.36, 954.52],
+        "label": "car",
+        "confidence": 0.866,
+        "track_id": 1,
+        "thickness": 2
+      }
+    ],
+    "radar_clusters": [
+      {
+        "track_id": 0,
+        "is_confirmed": true,
+        "label": "object",
+        "centroid": { "range_m": 13.5, "velocity_kmh": -18.2 },
+        "points": [
+          { "range_m": 13.2, "velocity_kmh": -17.8 }
+        ]
+      }
+    ],
+    "track_histories": [
+      {
+        "track_id": 0,
+        "history": [
+          { "range_m": 15.2, "velocity_kmh": -18.0 },
+          { "range_m": 13.5, "velocity_kmh": -18.2 }
+        ]
+      }
+    ]
+  }
+}
+```
+
+- `detections`: YOLO bounding boxes — `pos1` top-left, `pos2` bottom-right (pixel coordinates)
+- `radar_clusters`: DBSCAN clusters — `label` is set by the labeling tool (`object` / `pair` / `noise`)
+- `track_histories`: full movement history of confirmed tracks, used to render the Track History plot
 
 ## Usage
 
