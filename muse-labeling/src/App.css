@@ -1,0 +1,72 @@
+:root {
+  --bg:        #1a1a2e;
+  --bg2:       #16213e;
+  --accent:    #e94560;
+  --border:    #0f3460;
+  --text:      #e0e0e0;
+  --text-muted:#888;
+  --green:     #2ecc71;
+  --orange:    #f39c12;
+  --gray:      #7f8c8d;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ── Main grid ── */
+.main-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 260px;
+  /* grid-template-rows: 1fr 1fr; */
+  grid-template-rows: 3fr 1.2fr;
+  gap: 6px;
+  padding: 6px;
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.cell-rd      { grid-column: 1; grid-row: 1; }
+.cell-camera  { grid-column: 2; grid-row: 1; }
+.cell-panel   { grid-column: 3; grid-row: 1 / span 2; overflow-y: auto; }
+.cell-track   { grid-column: 1; grid-row: 2; }
+.cell-cluster { grid-column: 2; grid-row: 2; }
+
+.cell {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.cell-title {
+  font-size: 11px;
+  color: var(--text-muted);
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.cell-body {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  min-height: 0;
+}

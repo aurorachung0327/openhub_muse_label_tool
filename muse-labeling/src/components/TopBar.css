@@ -1,0 +1,50 @@
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 14px;
+  background: #16213e;
+  border-bottom: 1px solid #0f3460;
+  flex-shrink: 0;
+}
+
+.topbar-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #e94560;
+  letter-spacing: 0.03em;
+  margin-right: 4px;
+}
+
+.tb-btn {
+  padding: 4px 12px;
+  border: 1px solid #0f3460;
+  border-radius: 4px;
+  background: #0f3460;
+  color: #e0e0e0;
+  cursor: pointer;
+  font-size: 12px;
+  transition: background 0.15s, border-color 0.15s;
+}
+.tb-btn:hover:not(:disabled) { background: #e94560; border-color: #e94560; }
+.tb-btn:disabled { opacity: 0.35; cursor: default; }
+
+.frame-nav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.frame-label {
+  font-size: 12px;
+  color: #aaa;
+  min-width: 150px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.progress-label {
+  font-size: 11px;
+  color: #666;
+}
