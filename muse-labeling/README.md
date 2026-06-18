@@ -72,7 +72,13 @@ Open Chrome and go to `https://localhost` — click "Advanced" → "Proceed" to 
           { "range_m": 13.5, "velocity_kmh": -18.2 }
         ]
       }
-    ]
+    ],
+    "point_label": {
+      "target": {},
+      "pair": [],
+      "noise": []
+
+    }
   }
 }
 ```
