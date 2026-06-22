@@ -1,4 +1,4 @@
-export function StaticImage({ src, alt }) {
+export default function StaticImage({ src, alt }) {
   return (
     <img
       src={src}
@@ -6,12 +6,9 @@ export function StaticImage({ src, alt }) {
       style={{
         width: '100%',
         height: '100%',
-        objectFit: 'contain',
-        // objectFit: 'fill',
+        objectFit: 'contain',   // preserves the saved JPEG's original aspect ratio — never distort
         display: 'block',
       }}
     />
   )
 }
-
-export default StaticImage

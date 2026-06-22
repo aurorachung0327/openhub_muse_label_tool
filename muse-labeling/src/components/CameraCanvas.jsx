@@ -3,18 +3,16 @@ import { useRef, useEffect, useState, useCallback } from 'react'
 const HANDLE_R = 6
 
 export default function CameraCanvas({
-  imageURL, boxes, setBoxes, selectedBox, setSelectedBox
+  imageURL, boxes, setBoxes, selectedBox, setSelectedBox, onBeforeEdit, linkMode
 }) {
   const canvasRef = useRef(null)
   const imgRef    = useRef(new Image())
   const stateRef  = useRef({ boxes, selectedBox })
 
-  const [drag,   setDrag]   = useState(null)   // {type:'new'|'resize', ...}
+  const [drag, setDrag] = useState(null)
 
-  // keep ref in sync for canvas event handlers
   useEffect(() => { stateRef.current = { boxes, selectedBox } }, [boxes, selectedBox])
 
-  // load image
   useEffect(() => {
     if (!imageURL) return
     const img = new Image()
@@ -22,10 +20,8 @@ export default function CameraCanvas({
     img.src = imageURL
   }, [imageURL])
 
-  // re-render on data changes
   useEffect(() => { render() }, [boxes, selectedBox, drag])
 
-  // resize observer
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
@@ -38,7 +34,6 @@ export default function CameraCanvas({
     return () => ro.disconnect()
   }, [])
 
-  // ── coordinate helpers ──────────────────────────────────
   const getScale = useCallback(() => {
     const canvas = canvasRef.current
     const img    = imgRef.current
@@ -62,7 +57,6 @@ export default function CameraCanvas({
     return { x: e.clientX - r.left, y: e.clientY - r.top }
   }
 
-  // ── hit tests ───────────────────────────────────────────
   const hitHandle = (cx, cy) => {
     const { selectedBox, boxes } = stateRef.current
     if (selectedBox < 0) return null
@@ -90,17 +84,19 @@ export default function CameraCanvas({
     return -1
   }
 
-  // ── mouse events ─────────────────────────────────────────
   const onMouseDown = (e) => {
+    if (linkMode) return   // in link mode, clicks select a box (handled by onClick), never draw
     const pos = getPos(e)
     const handle = hitHandle(pos.x, pos.y)
     if (handle) {
+      onBeforeEdit?.()              // record history once at drag-start, not per-move
       setDrag({ type:'resize', handle, start: pos })
       return
     }
     const hit = hitBox(pos.x, pos.y)
     if (hit >= 0) { setSelectedBox(hit); return }
     setSelectedBox(-1)
+    onBeforeEdit?.()                // record history once before starting a new box
     setDrag({ type:'new', start: pos, current: pos })
   }
 
@@ -129,18 +125,22 @@ export default function CameraCanvas({
       const p1 = toImg(drag.start.x,   drag.start.y)
       const p2 = toImg(drag.current.x, drag.current.y)
       if (Math.abs(p2.x-p1.x) > 5 && Math.abs(p2.y-p1.y) > 5) {
-        const newBox = {
-          pos1: [Math.min(p1.x,p2.x), Math.min(p1.y,p2.y)],
-          pos2: [Math.max(p1.x,p2.x), Math.max(p1.y,p2.y)],
-          label:'car', confidence:1.0, track_id:-1, thickness:2
-        }
-        setBoxes(prev => { setSelectedBox(prev.length); return [...prev, newBox] })
+        setBoxes(prev => {
+          // assign next id = max existing id + 1 (ids start at 1 if none yet)
+          const maxId = prev.reduce((m, b) => Math.max(m, b.track_id ?? 0), 0)
+          const newBox = {
+            pos1: [Math.min(p1.x,p2.x), Math.min(p1.y,p2.y)],
+            pos2: [Math.max(p1.x,p2.x), Math.max(p1.y,p2.y)],
+            label: 'unknown', confidence: 1.0, track_id: maxId + 1, thickness: 2
+          }
+          setSelectedBox(prev.length)
+          return [...prev, newBox]
+        })
       }
     }
     setDrag(null)
   }
 
-  // ── render ───────────────────────────────────────────────
   const render = useCallback(() => {
     const canvas = canvasRef.current
     if (!canvas) return
@@ -165,7 +165,8 @@ export default function CameraCanvas({
       ctx.strokeRect(x1,y1,x2-x1,y2-y1)
       ctx.fillStyle = isSel ? '#e94560' : '#2ecc71'
       ctx.font = '11px Segoe UI'
-      ctx.fillText(`${b.label} #${b.track_id} (${(b.confidence*100).toFixed(0)}%)`, x1+2, y1-4)
+      const confTxt = b.confidence != null && b.confidence < 1 ? ` (${(b.confidence*100).toFixed(0)}%)` : ''
+      ctx.fillText(`${b.label} #${b.track_id}${confTxt}`, x1+2, y1-4)
       if (isSel) {
         [[x1,y1],[x2,y1],[x1,y2],[x2,y2]].forEach(([hx,hy]) => {
           ctx.fillStyle = '#e94560'
@@ -174,7 +175,6 @@ export default function CameraCanvas({
       }
     })
 
-    // new box drag preview
     if (drag?.type === 'new' && drag.current) {
       const { x:sx,y:sy } = drag.start
       const { x:cx,y:cy } = drag.current
@@ -186,13 +186,21 @@ export default function CameraCanvas({
     }
   }, [getScale, drag])
 
+  const onClick = (e) => {
+    if (!linkMode) return  // normal mode handles selection in onMouseDown
+    const pos = getPos(e)
+    const hit = hitBox(pos.x, pos.y)
+    if (hit >= 0) setSelectedBox(hit)
+  }
+
   return (
     <canvas
       ref={canvasRef}
-      style={{ position:'absolute', top:0, left:0, width:'100%', height:'100%', cursor:'crosshair' }}
+      style={{ position:'absolute', top:0, left:0, width:'100%', height:'100%', cursor: linkMode ? 'pointer' : 'crosshair' }}
       onMouseDown={onMouseDown}
       onMouseMove={onMouseMove}
       onMouseUp={onMouseUp}
+      onClick={onClick}
     />
   )
 }
