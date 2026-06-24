@@ -10,6 +10,7 @@ applying per-frame.
 ```bash
 npm install
 npm run build
+npm run dev
 ```
 
 ## Docker Deploy
@@ -92,6 +93,55 @@ depends on another.
 | `radar_detections` | Radar (2nd)   | Radar clusters after CFAR + DBSCAN + tracking. `track_id` is both the per-frame candidate key and the persistent track identity |
 | `track_history`    | Track (3rd)   | Full trajectory of each confirmed track up to this frame — self-contained, no need to read other frames |
 | `labeling`         | —             | Labels for this frame. Filled by this tool; `process.py` emits it empty |
+
+### Relaxed radar threshold export
+
+For labeling, the radar export can be generated with a more relaxed detector
+than the original visualization path in `process.py`.
+
+Original `process.py` settings:
+
+```python
+CA_CFAR(win_param=(15, 20, 9, 10), threshold=12, rd_size=(N, N))
+DBSCAN(eps=2, min_samples=3)
+```
+
+Relaxed labeling export settings in `MUSE/Processing/export_label_json_relaxed.py`:
+
+```bash
+python MUSE/Processing/export_label_json_relaxed.py \
+  --output-dir ./label_export_relaxed_cfar9_dbscan2 \
+  --cfar-threshold 9.0 \
+  --dbscan-eps 2.0 \
+  --dbscan-min-samples 2 \
+  --peak-metric mean
+```
+
+What changed:
+
+| Parameter | Original | Relaxed labeling export | Effect |
+|-----------|----------|-------------------------|--------|
+| `cfar_threshold` | `12` | `9.0` | Lower CFAR threshold keeps weaker radar peaks, so fewer possible targets are missed before manual review |
+| `dbscan_eps` | `2` | `2.0` | Same neighborhood radius as the original path |
+| `dbscan_min_samples` | `3` | `2` | Allows smaller clusters to survive DBSCAN instead of being dropped as noise |
+| `peak_metric` | implicit processing choice | `mean` | Stores cluster power using the mean peak metric for the relaxed export |
+
+Each exported frame records these values under `metadata`, for example:
+
+```json
+"metadata": {
+  "cfar_threshold": 9.0,
+  "dbscan_eps": 2.0,
+  "dbscan_min_samples": 2,
+  "peak_metric": "mean"
+}
+```
+
+The relaxed export is intentionally recall-heavy: it may include more radar
+noise, but the labeling tool can mark those candidates as noise or pairs later.
+If the export is run with `--skip-yolo`, `box_detections` will be empty; restore
+YOLO boxes from an earlier `ori_yolo_tracking_data.json` by copying
+`box_detections` frame-by-frame before pre-labeling object mappings.
 
 ### RD map rendering (`.raw`)
 

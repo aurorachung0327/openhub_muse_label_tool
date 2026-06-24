@@ -12,6 +12,11 @@ dist
 dist-ssr
 *.local
 
+# Large generated labeling exports
+my_output_frames*/
+label_export*/
+*.bak
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
