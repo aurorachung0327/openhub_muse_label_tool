@@ -10,6 +10,40 @@ subfolder has been flattened into the root project directory.
 
 ## Open the Labeling Tool
 
+### Quick Start on macOS
+
+Double-click:
+
+```text
+start_ui.command
+```
+
+Or run:
+
+```bash
+./start_ui.sh
+```
+
+The script opens the local Vite UI and installs dependencies first if
+`node_modules/` is missing.
+
+### Quick Start on Windows
+
+Double-click:
+
+```text
+start_ui.bat
+```
+
+Or run from Command Prompt / PowerShell:
+
+```bat
+start_ui.bat
+```
+
+The script opens the local Vite UI and installs dependencies first if
+`node_modules\` is missing.
+
 ### Method 1: Local Development
 
 ```bash
@@ -54,6 +88,9 @@ public/                      static icons and favicon
 split_label_json.py          split large labeling JSON files into chunks
 prelabel_object.py           optional object pre-label helper
 export_label_json_relaxed.py radar export helper copied from the MUSE pipeline
+start_ui.sh                  quick local UI launcher
+start_ui.command             macOS double-click launcher
+start_ui.bat                 Windows double-click launcher
 nginx/                       self-signed HTTPS nginx config for Docker
 ```
 
